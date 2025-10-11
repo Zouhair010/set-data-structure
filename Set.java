@@ -1,0 +1,229 @@
+import java.util.Arrays;
+public class Set{
+    /**
+     * A custom implementation of a dynamic Set data structure using a hash table
+     * with separate chaining for collision resolution. It can store objects of any type.
+     */
+    public static class DynamicSet{
+        /**
+         * Inner class representing a node in a linked list.
+         * Used for chaining in case of hash collisions.
+         */
+        private static class Node{
+            Node Next = null;
+            Object value;
+            /**
+             * Constructs a Node with the given value.
+             * @param value The value to be stored in the node.
+             */
+            public Node(Object value){
+                this.value = value;
+            }
+        }
+        // The underlying array for the hash table. Each element is the head of a linked list.
+        private Node[] set;
+        // The current capacity of the hash table array.
+        private int size = 10;
+        // The number of elements currently stored in the set.
+        private int dataCounter = 0;
+        /**
+         * Constructs an empty Set with a default initial capacity.
+         */
+        public DynamicSet(){
+            set = new Node[size];
+        }
+        /**
+         * Returns the number of elements in the set.
+         * @return The count of elements in the set.
+         */
+        public int length(){
+            return dataCounter;
+        }
+        /**
+         * Computes the hash for a given element to determine its index in the hash table.
+         * The hash is calculated by summing the character values of the element's string representation.
+         * @param elem The element to hash.
+         * @return The calculated index for the element in the hash table array.
+         */
+        private int hashFunction(Object elem){
+            int sum = 0;
+            char[] charArray = elem.toString().toCharArray();
+            for (char chr : charArray) { 
+                sum+=(int)chr;
+            }
+            // The modulo operator ensures the index is within the bounds of the array size.
+            return sum%size;
+        }
+        /**
+         * Adds an element to the set. If the element already exists, the set remains unchanged.
+         * If the set is full, it will be resized.
+         * @param elem The element to add to the set.
+         */
+        public void push(Object elem){ // Note: 'add' is a more conventional name for this method in a Set.
+            // If the number of elements reaches the capacity, resize the hash table.
+            if(dataCounter>=size){
+                resizeSet();
+            }
+            int index = hashFunction(elem);
+            Node currNode = set[index];
+            // If the bucket at the calculated index is empty, create a new node.
+            if (currNode==null){
+                set[index]=new Node(elem);
+                dataCounter++;
+                return;
+            }
+            // Traverse the linked list at the bucket to check for duplicates or add the new element.
+            while (currNode!=null) {
+                // If the element already exists, do nothing and return.
+                if (currNode.value.equals(elem)) {
+                    currNode.value = elem;
+                    return;
+                }
+                // If we reach the end of the list, add the new element.
+                else if (currNode.Next==null) {
+                    dataCounter++;
+                    currNode.Next = new Node(elem);
+                    return;
+                }
+                currNode=currNode.Next;
+            }
+        }
+        /**
+         * Removes an element from the set, if it is present.
+         * @param elem The element to remove.
+         */
+        public void remove(Object elem){
+            int index = hashFunction(elem);
+            Node currNode = set[index];
+            // Check if the head of the list is the element to be removed.
+            if (currNode != null && currNode.value.equals(elem)) {
+                set[index]=currNode.Next;
+                dataCounter--;
+                return;
+            }
+            // Traverse the list to find the element to remove.
+            while (currNode!=null) {
+                // Look ahead to find the node to remove so we can update the 'Next' pointer of the previous node.
+                if(currNode.Next!=null&&currNode.Next.value.equals(elem)){
+                    currNode.Next = currNode.Next.Next;
+                    dataCounter--;
+                    return;
+                }
+                currNode=currNode.Next;
+            }
+        }
+        /**
+         * Checks if the set contains the specified element.
+         * @param elem The element to check for.
+         * @return true if the element is in the set, false otherwise.
+         */
+        public boolean contains(Object elem){
+            int index = hashFunction(elem);
+            Node currNode = set[index];
+            // Traverse the linked list at the calculated index.
+            while (currNode!=null) {
+                if (currNode.value.equals(elem)){
+                    return true;
+                }
+                currNode=currNode.Next;
+            }
+            return false;
+        }
+        /**
+         * Resizes the hash table to double its current capacity.
+         * This involves creating a new, larger array and re-hashing all existing elements.
+         */
+        private void resizeSet(){
+            // Temporarily store all existing elements.
+            Object[] data = new Object[dataCounter];
+            int counter = 0;
+            for (Node node : set) {
+                Node currnode = node;
+                while (currnode!=null) {
+                    data[counter++] = currnode.value;
+                    currnode = currnode.Next;
+                }
+            }
+            // Double the size and create a new hash table.
+            size*=2;
+            set = new Node[size];
+            // Re-hash and re-insert all elements into the new, larger table.
+            for(int i=0 ; i<data.length ; i++){
+                int index = hashFunction(data[i]);
+                Node currNode = set[index]; 
+                if (currNode==null){
+                    // No collision, insert as the head of the list.
+                    set[index]=new Node(data[i]);
+                    continue;
+                }
+                while (currNode!=null) {
+                   if(currNode.value.equals(data[i])){
+                       currNode.value = data[i];
+                       break;
+                    }
+                    // Add to the end of the list.
+                    else if(currNode.Next==null){
+                       currNode.Next = new Node(data[i]);
+                       break;
+                    }
+                    currNode=currNode.Next;
+                }
+            }
+        }
+        /**
+         * Returns a string representation of the set.
+         * @return A string in the format "{elem1, elem2, ...}".
+         */
+        @Override
+        public String toString(){
+            String[] data = new String[dataCounter];
+            int t = 0;
+            // Iterate through each bucket of the hash table.
+            for (int i=0 ; i < set.length ; i++) {
+                Node currNode = set[i];
+                // Traverse the linked list in the current bucket.
+                while (currNode!=null) {
+                    data[t] = typeFormat(currNode.value);
+                    t++;
+                    currNode = currNode.Next;
+                }
+            }
+            return String.format("{%s}", String.join(", ", data));
+        }
+        /**
+         * Formats an object as a string for display, adding quotes for characters and strings.
+         * @param item The object to format.
+         * @return A formatted string representation of the object.
+         */
+        private static String typeFormat(Object item){
+            String string;
+            switch (item.getClass().getName()) {
+                    case "java.lang.Character":
+                        string = "\'"+item+"\'";
+                        break;
+                    case "java.lang.String":
+                        string = "\""+item+"\"";
+                        break;
+                    default:
+                        string = ""+item;
+                        break;
+            }
+            return string;
+        }
+
+        /**
+         * Main method for demonstrating the Set class functionality.
+         */
+        public static void main(String[] args){
+            DynamicSet set = new DynamicSet();
+            set.push(1);
+            set.push('1');
+            set.push("1");
+            set.push(1);
+            System.out.println(set);
+            System.out.println(set.contains("aa"));
+            System.out.println(set.length());
+        }
+
+    }
+}
