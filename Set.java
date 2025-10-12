@@ -3,7 +3,7 @@ public class Set{
     /**
      * A custom implementation of a dynamic Set data structure using a hash table
      * with separate chaining for collision resolution. It supports standard set
-     * operations like add, remove, and contains, as well as union and intersection
+     * operations like add, remove, and contains, as well as union, intersection and difference.
      */
     public static class DynamicSet{
         /**
@@ -199,6 +199,57 @@ public class Set{
             size = dataSize;
         }
         /**
+         * Updates the set, keeping only the elements not found in the specified elements.
+         * This method rebuilds the hash table from scratch.
+         */
+        public void differenceUpdate(Object... elems){
+            // Get all elements currently in the set.
+            Object[] data = getData();
+            int dataSize = 0;
+            // First pass: Count the number of elements in the difference.
+            for (Object object : data) {
+                if (!search(elems, object)){
+                    dataSize++;
+                }
+            }
+            // Create a new hash table with a size equal to the difference count.
+            Node[] newSet = new Node[dataSize];System.out.println(set);
+            // Second pass: Populate the new hash table with the difference elements.
+            for (Object object : data) {
+                if (!search(elems, object)){
+                    int sum = 0;
+                    // Manually re-calculating the hash. This duplicates the hashFunction logic.
+                    char[] charArray = object.toString().toCharArray();
+                    for (char chr : charArray) { 
+                        sum+=(int)chr;
+                    }
+                    int index = sum%dataSize;
+                    Node currNode = newSet[index];
+                    if (currNode==null){
+                        // No collision, insert as the head of the list.
+                        newSet[index]=new Node(object);
+                        continue;
+                    }
+                    while (currNode!=null) {
+                        if (currNode.value.equals(object)) {
+                            currNode.value = object;
+                            break;
+                        }
+                        // Add to the end of the list.
+                        else if (currNode.Next==null) {
+                            currNode.Next = new Node(object);
+                            break;
+                        }
+                        currNode=currNode.Next;
+                    }
+                }
+            }
+            // Replace the old set, counter, and size with the new ones.
+            set = newSet;
+            dataCounter = dataSize;
+            size = dataSize;
+        }
+        /**
          * A helper method to perform a linear search for an object within an array.
          * @param objects The array to search in.
          * @param object The object to search for.
@@ -333,7 +384,6 @@ public class Set{
             }
             return string;
         }
-
         /**
          * Main method for demonstrating the Set class functionality.
          */
@@ -345,9 +395,10 @@ public class Set{
             System.out.println(set.length());
             set.intersectionUpdate(4,5,2,1);
             System.out.println(set);
+            set.differenceUpdate(4,5,6,7);
+            System.out.println(set);
             System.out.println(set.contains(2));
             System.out.println(set.length());
         }
-
     }
 }
