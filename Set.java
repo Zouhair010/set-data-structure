@@ -2,7 +2,8 @@ import java.util.Arrays;
 public class Set{
     /**
      * A custom implementation of a dynamic Set data structure using a hash table
-     * with separate chaining for collision resolution. It can store objects of any type.
+     * with separate chaining for collision resolution. It supports standard set
+     * operations like add, remove, and contains, as well as union and intersection
      */
     public static class DynamicSet{
         /**
@@ -23,21 +24,15 @@ public class Set{
         // The underlying array for the hash table. Each element is the head of a linked list.
         private Node[] set;
         // The current capacity of the hash table array.
-        private int size = 10;
+        private int size;
         // The number of elements currently stored in the set.
         private int dataCounter = 0;
         /**
-         * Constructs an empty Set with a default initial capacity.
+         * Constructs an empty Set with a default initial capacity of 10.
          */
         public DynamicSet(){
+            size = 10;
             set = new Node[size];
-        }
-        /**
-         * Returns the number of elements in the set.
-         * @return The count of elements in the set.
-         */
-        public int length(){
-            return dataCounter;
         }
         /**
          * Computes the hash for a given element to determine its index in the hash table.
@@ -56,10 +51,10 @@ public class Set{
         }
         /**
          * Adds an element to the set. If the element already exists, the set remains unchanged.
-         * If the set is full, it will be resized.
+         * If the set's load factor is reached, it will be resized.
          * @param elem The element to add to the set.
          */
-        public void push(Object elem){ // Note: 'add' is a more conventional name for this method in a Set.
+        public void add(Object elem){
             // If the number of elements reaches the capacity, resize the hash table.
             if(dataCounter>=size){
                 resizeSet();
@@ -113,21 +108,149 @@ public class Set{
             }
         }
         /**
-         * Checks if the set contains the specified element.
-         * @param elem The element to check for.
-         * @return true if the element is in the set, false otherwise.
+         * Updates the set, adding elements from an iterable or another set.
+         * @param elems A variable number of elements to add to the set.
          */
+        public void unionUpdate(Object... elems){
+            // Iterate through all provided elements and add them to the set.
+            for (Object elem : elems) {
+                // This check is somewhat inefficient as it's inside the loop.
+                // A single resize check before the loop would be better.
+                if(dataCounter>=size){
+                    resizeSet();
+                }
+                int index = hashFunction(elem);
+                Node currNode = set[index];
+                // If the bucket is empty, add the new element.
+                if (currNode==null){
+                   set[index]=new Node(elem);
+                   dataCounter++;
+                   continue;
+                }
+                // Traverse the linked list to handle collisions or find duplicates.
+                while (currNode!=null) {
+                    if (currNode.value.equals(elem)) {
+                        // Element already exists, do nothing.
+                        currNode.value = elem;
+                        break;
+                    }
+                    else if (currNode.Next==null) {
+                        dataCounter++;
+                        currNode.Next = new Node(elem);
+                        break;
+                    }
+                    currNode=currNode.Next;
+                }
+            }
+        }
+        /**
+         * Updates the set, keeping only the elements found in both it and the specified elements.
+         * This method rebuilds the hash table from scratch.
+         * @param elems A variable number of elements to form the intersection with.
+         */
+        public void intersectionUpdate(Object... elems){
+            // Get all elements currently in the set.
+            Object[] data = getData();
+            // Determine which array is larger to optimize the search loop.
+            Object[] arrObjects = (data.length>=elems.length) ? data : elems;
+            Object[] subArrObjects = (data.length<elems.length) ? data : elems;
+            int dataSize = 0;
+            // First pass: Count the number of elements in the intersection.
+            for (Object object : arrObjects) {
+                if (search(subArrObjects, object)){
+                    dataSize++;
+                }
+            }
+            // Create a new hash table with a size equal to the intersection count.
+            Node[] newSet = new Node[dataSize];
+            // Second pass: Populate the new hash table with the intersection elements.
+            for (Object object : arrObjects) {
+                if (search(subArrObjects, object)){
+                    int sum = 0;
+                    // Manually re-calculating the hash. This duplicates the hashFunction logic.
+                    char[] charArray = object.toString().toCharArray();
+                    for (char chr : charArray) { 
+                        sum+=(int)chr;
+                    }
+                    int index = sum%dataSize;
+                    Node currNode = newSet[index];
+                    if (currNode==null){
+                        // No collision, insert as the head of the list.
+                        newSet[index]=new Node(object);
+                        continue;
+                    }
+                    while (currNode!=null) {
+                        if (currNode.value.equals(object)) {
+                            currNode.value = object;
+                            break;
+                        }
+                        // Add to the end of the list.
+                        else if (currNode.Next==null) {
+                            currNode.Next = new Node(object);
+                            break;
+                        }
+                        currNode=currNode.Next;
+                    }
+                }
+            }
+            // Replace the old set, counter, and size with the new ones.
+            set = newSet;
+            dataCounter = dataSize;
+            size = dataSize;
+        }
+        /**
+         * A helper method to perform a linear search for an object within an array.
+         * @param objects The array to search in.
+         * @param object The object to search for.
+         * @return true if the object is found, false otherwise.
+         */
+        private boolean search(Object[] objects, Object object){
+            for (Object obj : objects) {
+                if (obj.equals(object)){
+                    return true;
+                }
+            }
+            return false;
+        }
         public boolean contains(Object elem){
+            // Find the bucket for the given element.
             int index = hashFunction(elem);
             Node currNode = set[index];
             // Traverse the linked list at the calculated index.
             while (currNode!=null) {
+                // If a node with the same value is found, return true.
                 if (currNode.value.equals(elem)){
                     return true;
                 }
                 currNode=currNode.Next;
             }
             return false;
+        }
+        /**
+         * Returns the number of elements in the set.
+         * @return The count of elements in the set.
+         */
+        public int length(){
+            return dataCounter;
+        }
+        /**
+         * Retrieves all elements from the set and returns them as an array.
+         * @return An array of Objects containing all elements in the set.
+         */
+        public Object[] getData(){
+            Object [] data = new Object[dataCounter];
+            int t = 0;
+            // Iterate through each bucket of the hash table.
+            for(int i=0 ; i<set.length ; i++){
+                Node currNode = set[i];
+                // Traverse the linked list in the current bucket.
+                while (currNode!=null) {
+                    data[t] = currNode.value;
+                    t++;
+                    currNode = currNode.Next;
+                }
+            }
+            return data;
         }
         /**
          * Resizes the hash table to double its current capacity.
@@ -216,12 +339,13 @@ public class Set{
          */
         public static void main(String[] args){
             DynamicSet set = new DynamicSet();
-            set.push(1);
-            set.push('1');
-            set.push("1");
-            set.push(1);
+            set.add(1);
+            set.unionUpdate(2,3,4,5,1);
             System.out.println(set);
-            System.out.println(set.contains("aa"));
+            System.out.println(set.length());
+            set.intersectionUpdate(4,5,2,1);
+            System.out.println(set);
+            System.out.println(set.contains(2));
             System.out.println(set.length());
         }
 
